@@ -17,6 +17,9 @@ class DriverSpla(driver.Driver):
     def can_run_tc(self, dataset: Dataset) -> bool:
         return True
 
+    def can_run_pr(self, dataset: Dataset) -> bool:
+        return True
+
     def run_bfs(self,
                 dataset: Dataset,
                 source_vertex: int,
@@ -57,6 +60,18 @@ class DriverSpla(driver.Driver):
             f"--niters={num_iterations}",
             f"--undirected={dir_flag}"
         ])
+        return DriverSpla._parse_output(output)
+
+    def run_pr(self,
+               dataset: Dataset,
+               num_iterations: int) -> driver.ExecutionResult:
+
+        output = check_output([
+            self.exec_path(AlgorithmName.pr),
+            f"--mtxpath={dataset.path}",
+            f"--niters={num_iterations}"
+        ])
+
         return DriverSpla._parse_output(output)
 
     def tool_name(self) -> ToolName:
