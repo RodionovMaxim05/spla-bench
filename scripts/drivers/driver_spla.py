@@ -68,8 +68,22 @@ class DriverSpla(driver.Driver):
         warmup = 0.0
         runs = []
         for line in lines:
-            if line.startswith("warm-up(ms):"):
-                warmup = float(line.split(" ")[1])
-            if line.startswith("iters(ms):"):
-                runs = [float(v) for v in line.split(" ")[1:-1]]
+            # Parse GPU timings if available, otherwise use CPU timings
+            if line.startswith("gpu(ms):"):
+                timings_str = line.replace("gpu(ms):", "").strip()
+                timings = [
+                    float(v.strip()) for v in timings_str.split(",") if v.strip()
+                ]
+                if timings:
+                    warmup = timings[0]
+                    runs = timings[1:] if len(timings) > 1 else []
+            elif line.startswith("cpu(ms):") and not runs:
+                timings_str = line.replace("cpu(ms):", "").strip()
+                timings = [
+                    float(v.strip()) for v in timings_str.split(",") if v.strip()
+                ]
+                if timings:
+                    warmup = timings[0]
+                    runs = timings[1:] if len(timings) > 1 else []
+
         return driver.ExecutionResult(warmup, runs)

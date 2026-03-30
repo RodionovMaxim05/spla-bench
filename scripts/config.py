@@ -98,9 +98,9 @@ TOOL_CONFIG: Dict[ToolName, ToolConfigurations] = {
         sources=DEPS / 'lagraph',
         build=DEPS / 'lagraph' / 'build',
         algo_rel={
-            AlgorithmName.bfs:  Path('sources') / 'benchmark' / 'bfs_demo',
-            AlgorithmName.sssp: Path('sources') / 'benchmark' / 'sssp_demo',
-            AlgorithmName.tc:   Path('sources') / 'benchmark' / 'tc_demo'
+            AlgorithmName.bfs:  Path('src') / 'benchmark' / 'bfs_demo',
+            AlgorithmName.sssp: Path('src') / 'benchmark' / 'sssp_demo',
+            AlgorithmName.tc:   Path('src') / 'benchmark' / 'tc_demo'
         },
         config=Namespace()
     ),
@@ -109,9 +109,9 @@ TOOL_CONFIG: Dict[ToolName, ToolConfigurations] = {
         sources=DEPS / 'spla',
         build=DEPS / 'spla' / 'build',
         algo_rel={
-            AlgorithmName.bfs:  Path('spla_bfs'),
-            AlgorithmName.sssp: Path('spla_sssp'),
-            AlgorithmName.tc:   Path('spla_tc')
+            AlgorithmName.bfs:  Path('bfs'),
+            AlgorithmName.sssp: Path('sssp'),
+            AlgorithmName.tc:   Path('tc')
         },
         config=Namespace()
     ),
