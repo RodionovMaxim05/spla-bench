@@ -9,10 +9,10 @@ from lib.util import check_output
 
 class DriverSpla(driver.Driver):
     def can_run_bfs(self, dataset: Dataset) -> bool:
-        return dataset.get_element_type() == DatasetValueType.void
+        return True
 
     def can_run_sssp(self, dataset: Dataset) -> bool:
-        return dataset.get_element_type() == DatasetValueType.float
+        return True
 
     def can_run_tc(self, dataset: Dataset) -> bool:
         return True
@@ -69,7 +69,8 @@ class DriverSpla(driver.Driver):
         output = check_output([
             self.exec_path(AlgorithmName.pr),
             f"--mtxpath={dataset.path}",
-            f"--niters={num_iterations}"
+            f"--niters={num_iterations}",
+            f"--eps=1e-4"
         ])
 
         return DriverSpla._parse_output(output)

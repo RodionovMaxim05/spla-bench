@@ -35,7 +35,7 @@ class DriverLaGraph(Driver):
                 sources_file.name
             ])
 
-            return DriverLaGraph._parse_output(output, "parent only", 9, "warmup", 4)
+            return DriverLaGraph._parse_output(output, "level only", 9, "warmup", 4)
 
     def run_sssp(self,
                  dataset: Dataset,
@@ -46,7 +46,8 @@ class DriverLaGraph(Driver):
             output = check_output([
                 self.exec_path(AlgorithmName.sssp),
                 dataset.path,
-                sources_file.name
+                sources_file.name,
+                '1'
             ])
 
             return DriverLaGraph._parse_output(output, "sssp", 8)
