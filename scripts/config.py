@@ -12,6 +12,13 @@ import lib.util as util
 from lib.tool import ToolName
 from lib.algorithm import AlgorithmName
 
+# To select the starting vertex
+import numpy as np
+from scipy.io import mmread
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
+from typing import Dict
+
 
 """
 System information
@@ -286,7 +293,7 @@ class DatasetSize(Enum):
     small = DatasetSizeInfo(max_n_edges=80000, iterations=20)
     medium = DatasetSizeInfo(max_n_edges=500000, iterations=10)
     large = DatasetSizeInfo(max_n_edges=2000000, iterations=5)
-    extra_large = DatasetSizeInfo(max_n_edges=None, iterations=2)
+    extra_large = DatasetSizeInfo(max_n_edges=None, iterations=3)
 
     def iterations(self):
         return self.value.iterations
@@ -326,17 +333,19 @@ Note: All datasets are taken from http://sparse.tamu.edu/
 
 """
 DATASET_URL: Dict[str, str] = {
-    '1128_bus': 'https://suitesparse-collection-website.herokuapp.com/MM/HB/1138_bus.tar.gz',
-    'bcspwr03': 'https://suitesparse-collection-website.herokuapp.com/MM/HB/bcspwr03.tar.gz',
-    'soc-LiveJournal': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz',
-    'hollywood-09': 'https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz',
-    'Journals': 'https://suitesparse-collection-website.herokuapp.com/MM/Pajek/Journals.tar.gz',
-    'com-Orcut': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz',
-    'roadNet-CA': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-CA.tar.gz',
-    'indochina-2004': 'https://suitesparse-collection-website.herokuapp.com/MM/LAW/indochina-2004.tar.gz',
-    'cit-Patents': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz',
     'coAuthorsCiteseer': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsCiteseer.tar.gz',
-    'coPapersDBLP': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersDBLP.tar.gz'
+    'coPapersDBLP': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersDBLP.tar.gz',
+    'amazon-2008': 'https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz',
+    'hollywood-2009': 'https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz',
+    'belgium_osm': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/belgium_osm.tar.gz',
+    'roadNet-CA': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-CA.tar.gz',
+    'com-Orkut': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz',
+    'cit-Patents': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz',
+    'rgg_n_2_22_s0': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_22_s0.tar.gz',
+    'soc-LiveJournal': 'https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz',
+    'indochina-2004': 'https://suitesparse-collection-website.herokuapp.com/MM/LAW/indochina-2004.tar.gz',
+    'rgg_n_2_23_s0': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_23_s0.tar.gz',
+    'road_central': 'https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/road_central.tar.gz',
 }
 
 
@@ -348,6 +357,63 @@ Default source for the path-finding algorithms (bfs, sssp)
 """
 DEFAULT_SOURCE = 0
 
+# Cache to avoid recalculating for the same dataset multiple times
+_source_cache: Dict[str, int] = {
+    'coAuthorsCiteseer': 4,
+    'coPapersDBLP': 21,
+    'hollywood-2009': 46,
+    'belgium_osm': 0,
+    'roadNet-CA': 0,
+    'rgg_n_2_22_s0': 1,
+    'road_central': 4,
+}
+
+def find_best_source(mtx_path: str, dataset_name: str, is_directed: bool) -> int:
+    """
+    The vertex with the median degree in the largest connected component.
+    Returns a 0-based index.
+    """
+    print(f"Finding best source vertex for {dataset_name}")
+    if dataset_name in _source_cache:
+        return _source_cache[dataset_name]
+
+    mat = mmread(mtx_path)
+    A = csr_matrix(mat)
+    A.data[:] = 1
+    n = A.shape[0]
+
+    if is_directed:
+        _, labels = connected_components(
+            A, directed=True, connection='strong', return_labels=True)
+    else:
+        _, labels = connected_components(
+            A, directed=False, return_labels=True)
+
+    component_sizes = np.bincount(labels)
+    largest_id = int(np.argmax(component_sizes))
+    largest_size = component_sizes[largest_id]
+    print(f"  Largest component: {largest_size} vertices ({100.0 * largest_size / n:.1f}%)")
+
+    vertices = np.where(labels == largest_id)[0]
+    degrees = np.array(A[vertices].sum(axis=1)).flatten()
+
+    non_sink_mask = degrees > 0
+    if non_sink_mask.sum() == 0:
+        print("  Warning: all vertices in largest component are sinks, picking first")
+        best_vertex = int(vertices[0])
+    else:
+        vertices = vertices[non_sink_mask]
+        degrees = degrees[non_sink_mask]
+        median_degree = np.median(degrees)
+        closest_idx = int(np.argmin(np.abs(degrees - median_degree)))
+        best_vertex = int(vertices[closest_idx])
+        print(f"  Best source: vertex={best_vertex}, "
+              f"out_degree={int(degrees[closest_idx])}, "
+              f"median={median_degree:.1f}")
+
+    _source_cache[dataset_name] = best_vertex
+    return best_vertex
+
 
 """
 List of the datasets, which will be used for the benchmark
@@ -358,16 +424,19 @@ or to the .mtx
 
 """
 BENCHMARK_DATASETS = [
-    '1128_bus',
-    'bcspwr03',
-    'soc-LiveJournal',
-    'hollywood-09',
-    'com-Orcut',
-    'roadNet-CA',
-    'indochina-2004',
-    'cit-Patents',
     'coAuthorsCiteseer',
-    'coPapersDBLP'
+    'coPapersDBLP',
+    # 'amazon-2008',
+    'hollywood-2009',
+    'belgium_osm',
+    'roadNet-CA',
+    # 'com-Orkut', - OOM
+    # 'cit-Patents',
+    'rgg_n_2_22_s0',
+    # 'soc-LiveJournal',
+    # 'indochina-2004',
+    # 'rgg_n_2_23_s0', - OOM
+    'road_central'
 ]
 
 """

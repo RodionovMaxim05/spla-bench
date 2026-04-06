@@ -163,7 +163,13 @@ class Driver:
         dataset_category = dataset.get_category()
 
         iterations = dataset_category.iterations()
-        source = config.DEFAULT_SOURCE
+
+        if algo in [AlgorithmName.bfs, AlgorithmName.sssp]:
+            source = config.find_best_source(
+                str(dataset.path), str(dataset.name), is_directed=dataset.get_directed()
+            )
+        else:
+            source = config.DEFAULT_SOURCE
 
         self.print_status('run',
                           f'begin {algo.name}',
